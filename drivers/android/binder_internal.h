@@ -516,6 +516,8 @@ struct binder_proc_ext {
 	struct binder_proc proc;
 	const struct cred *cred;
 	struct list_head delivered_freeze;
+	/* feature bits negotiated through BINDER_FEATURE_SET */
+	u64 feature_set;
 };
 
 static inline const struct cred *binder_get_cred(struct binder_proc *proc)
@@ -595,6 +597,12 @@ struct binder_thread {
 	spinlock_t prio_lock;
 	struct binder_priority prio_next;
 	enum binder_prio_state prio_state;
+	/*
+	 * Token ids of the transaction this thread last dequeued; read back
+	 * through BINDER_GET_ACCESS_TOKEN. Only accessed by this thread.
+	 */
+	u64 sender_tokenid;
+	u64 first_tokenid;
 };
 
 /**
@@ -643,6 +651,9 @@ struct binder_transaction {
 	 */
 	spinlock_t lock;
 	ANDROID_VENDOR_DATA(1);
+	/* token ids of the sending thread, captured when the txn is created */
+	u64 sender_tokenid;
+	u64 first_tokenid;
 };
 
 /**

@@ -3313,6 +3313,9 @@ static void binder_transaction(struct binder_proc *proc,
 	else
 		t->from = NULL;
 	t->sender_euid = task_euid(proc->tsk);
+	/* HarmonyOS access tokens of the calling thread */
+	t->sender_tokenid = current->access_token;
+	t->first_tokenid = current->first_access_token;
 	t->to_proc = target_proc;
 	t->to_thread = target_thread;
 	t->code = tr->code;
@@ -5002,6 +5005,9 @@ retry:
 		trd->code = t->code;
 		trd->flags = t->flags;
 		trd->sender_euid = from_kuid(current_user_ns(), t->sender_euid);
+		/* remembered for a following BINDER_GET_ACCESS_TOKEN */
+		thread->sender_tokenid = t->sender_tokenid;
+		thread->first_tokenid = t->first_tokenid;
 
 		t_from = binder_get_txn_from(t);
 		if (t_from) {
@@ -5856,6 +5862,49 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         break;
     }
     // ] @SystemFW
+
+    /* HarmonyOS userspace extensions */
+    case BINDER_FEATURE_SET: {
+        struct binder_feature_set fs;
+
+        if (size != sizeof(fs)) {
+            ret = -EINVAL;
+            goto err;
+        }
+        if (copy_from_user(&fs, ubuf, sizeof(fs))) {
+            ret = -EFAULT;
+            goto err;
+        }
+        /*
+         * The exact meaning of the individual bits is defined by the
+         * HarmonyOS IPC library, which only needs the request to succeed
+         * and to be echoed back. Log what it asks for so unexpected bits
+         * show up in dmesg.
+         */
+        pr_info_ratelimited("binder:%d:%d BINDER_FEATURE_SET 0x%llx\n",
+                            proc->pid, thread->pid, fs.feature_set);
+        proc_wrapper(proc)->feature_set = fs.feature_set;
+        if (copy_to_user(ubuf, &fs, sizeof(fs))) {
+            ret = -EFAULT;
+            goto err;
+        }
+        break;
+    }
+    case BINDER_GET_ACCESS_TOKEN: {
+        struct access_token tokens = {};
+
+        if (size != sizeof(tokens)) {
+            ret = -EINVAL;
+            goto err;
+        }
+        tokens.sender_tokenid = thread->sender_tokenid;
+        tokens.first_tokenid = thread->first_tokenid;
+        if (copy_to_user(ubuf, &tokens, sizeof(tokens))) {
+            ret = -EFAULT;
+            goto err;
+        }
+        break;
+    }
 
     // ++ Google Freezer
     case BINDER_FREEZE: {

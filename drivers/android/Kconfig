@@ -99,6 +99,16 @@ config ANDROID_VENDOR_OEM_DATA
 
 	  If even slightly unsure, say Y.
 
+config ANDROID_ACCESS_TOKENID
+	bool "HarmonyOS access token id device (/dev/access_token_id)"
+	depends on ANDROID_BINDER_IPC
+	default n
+	---help---
+	  Creates /dev/access_token_id, which HarmonyOS userspace uses to store
+	  a per-thread access token id. Binder carries the id along with every
+	  transaction (BINDER_GET_ACCESS_TOKEN). Needed to run HarmonyOS system
+	  services and apps on this kernel. Say N on plain Android.
+
 endif # if ANDROID
 
 endmenu

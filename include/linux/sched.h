@@ -1326,8 +1326,13 @@ struct task_struct {
 	ANDROID_VENDOR_DATA_ARRAY(1, 3);
 	ANDROID_OEM_DATA_ARRAY(1, 3);
 
-	ANDROID_KABI_RESERVE(1);
-	ANDROID_KABI_RESERVE(2);
+	/*
+	 * HarmonyOS access token ids. They live in two of the KABI padding
+	 * slots, so the layout of task_struct (and every module CRC) stays
+	 * identical. Copied on fork by dup_task_struct(), so children inherit.
+	 */
+	ANDROID_KABI_USE(1, u64 access_token);
+	ANDROID_KABI_USE(2, u64 first_access_token);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
 	ANDROID_KABI_RESERVE(5);
